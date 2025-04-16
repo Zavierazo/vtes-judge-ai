@@ -100,5 +100,5 @@ jobs:
         if: ${{ github.event_name != 'pull_request' }}
         uses: joelwmale/webhook-action@master
         env:
-          WEBHOOK_URL: http://${{ secrets.WEBHOOK_HOST }}:${{ secrets.WEBHOOK_PORT }}/hooks/redeploy-vtesdecks-back
+          WEBHOOK_URL: http://${{ secrets.WEBHOOK_HOST }}:${{ secrets.WEBHOOK_PORT }}/hooks/redeploy-vtes-judge-ai
           data: ""

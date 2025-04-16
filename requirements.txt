@@ -9,3 +9,4 @@ fastapi
 pydantic
 pypl
 uvicorn
+pypdf
