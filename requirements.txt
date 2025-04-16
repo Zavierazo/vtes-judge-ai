@@ -11,3 +11,4 @@ pypl
 uvicorn
 pypdf
 chromadb
+pysqlite3-binary
