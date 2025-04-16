@@ -1,6 +1,8 @@
 # vtes-judge-ai
 
-### 4. Run the Application with Local Profile
+Vtes Judge AI is a api that allows you to ask questions about Vampire: The Eternal Struggle (VTES) trading card game.
+
+## Run the Application with Local Profile
 
 First, you need to create a `.env` file in the root directory of the project with the following content:
 
