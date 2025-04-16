@@ -1,0 +1,131 @@
+import os
+import requests
+from langchain.storage import LocalFileStore
+from langchain_community.document_loaders import CSVLoader, PyPDFLoader
+from langchain.text_splitter import CharacterTextSplitter
+from langchain_community.vectorstores import Chroma
+from fastapi import FastAPI
+from pydantic import BaseModel
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
+from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
+from langchain.prompts import ChatPromptTemplate
+from langchain_community.document_loaders import DirectoryLoader
+from langchain.schema.runnable import RunnablePassthrough
+from langchain.schema.output_parser import StrOutputParser
+from langchain.embeddings import CacheBackedEmbeddings
+from langchain.tools import tool
+from pydantic import BaseModel, Field
+
+class CardNameInput(BaseModel):
+    song: str = Field(
+        description="exact card name from csv Name column")
+
+# Initialize ruling tool
+@tool("ruling_by_name", return_direct=True, args_schema=CardNameInput)
+def ruling_by_name(name: str) -> list:
+    """Extract the ruling from card name."""
+    url = f"https://api.krcg.org/card/{name}"
+    response = requests.get(url)
+    if response.status_code==200:
+        return response.json()["rulings"]
+    else:
+        return []
+
+app = FastAPI()
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+openai_embedding = OpenAIEmbeddings(model="text-embedding-ada-002")
+
+store = LocalFileStore("./.cache/")
+
+embedding = CacheBackedEmbeddings.from_bytes_store(
+    openai_embedding, store, namespace=openai_embedding.model
+)
+
+# Initialize rulebook vector database
+pdf_path = "./data/rulebook.pdf"
+loader = PyPDFLoader(pdf_path)
+documents = loader.load()
+
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+texts = text_splitter.split_documents(documents)
+
+rulebook_vectordb = Chroma.from_documents(texts, embedding)
+
+rulebook_retriever = rulebook_vectordb.as_retriever()
+
+#Initialize csv vector database
+loader = DirectoryLoader('./data/csv', glob='*.csv', loader_cls=CSVLoader, loader_kwargs={'encoding': 'utf-8'})
+documents = loader.load()
+
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+texts = text_splitter.split_documents(documents)
+
+csv_vectordb = Chroma.from_documents(texts, embedding)
+
+csv_retriever = csv_vectordb.as_retriever()
+
+
+
+# Initialize ChatOpenAI
+llm = ChatOpenAI(
+    openai_api_key=OPENAI_API_KEY,
+    model_name='gpt-4o',
+    temperature=0.0
+)
+
+# Create tools for the agent
+tools = [
+    Tool(
+        name="CSV",
+        func=csv_retriever.get_relevant_documents,
+        description="Useful for retrieving relevant documents with info about crypt and library texts and disciplines",
+    ),
+    Tool(
+        name="Ruling",
+        func=ruling_by_name,
+        description="Useful for extracting the ruling from card name. Card name should be exact match from csv Name column",
+    )
+]
+
+# Creating Prompt
+prompt = ChatPromptTemplate.from_messages([
+    ("system", "You are a helpful AI assistant for Vampire: The Eternal Struggle (VTES) trading card game. "
+    "Address questions exclusively related to VTES. "
+    "Use the provided tools to answer the user's question. "
+    "Always use the Ruling tool to extract the ruling from card name. "
+    "Add source of the answer in the end of your answer with page number of rulebook with url https://www.blackchantry.com/utilities/rulebook/. "
+    "If you don't know the answer, just say that you don't know, don't try to make up an answer "
+    "If you don't find the card in the database, say that you didn't find the card with the name. "
+    "If card have ruling, add all rulings in the end of your answer. "
+    "If card have no ruling, add 'No ruling found' in the end of your answer. "),
+    ("human", "{question}"),
+    ("human", "Relevant information: {context}"),
+    ("placeholder", "{agent_scratchpad}"),
+])
+
+# Agent
+agent = create_openai_functions_agent(llm, tools, prompt)
+agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+
+# Creating the LCEL chain
+chain = (
+    {"context": rulebook_retriever, "question": RunnablePassthrough()}
+    | agent_executor
+)
+
+
+class Query(BaseModel):
+    question: str
+   
+# Create API Endpoint
+@app.post("/ask")
+async def ask_question(query: Query):
+    response = chain.invoke(query.question)
+    return {"answer": response['output']}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8080)

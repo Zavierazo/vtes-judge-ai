@@ -1,0 +1,10 @@
+
+langchain
+langchain-community
+pinecone-client
+langchain-openai
+openai
+tavily-python
+fastapi
+pydantic
+pypl
