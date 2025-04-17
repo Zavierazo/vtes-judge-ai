@@ -35,13 +35,13 @@ app = FastAPI()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-embedding = OpenAIEmbeddings(model="text-embedding-ada-002")
+openai_embedding = OpenAIEmbeddings(model="text-embedding-ada-002")
 
-# store = LocalFileStore("./.cache/")
+store = LocalFileStore("./.cache/")
 
-# embedding = CacheBackedEmbeddings.from_bytes_store(
-#     openai_embedding, store, namespace=openai_embedding.model
-# )
+embedding = CacheBackedEmbeddings.from_bytes_store(
+    openai_embedding, store, namespace=openai_embedding.model
+)
 
 # Initialize rulebook vector database
 pdf_path = "./data/rulebook.pdf"
@@ -51,7 +51,7 @@ documents = loader.load()
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 texts = text_splitter.split_documents(documents)
 
-rulebook_vectordb = Chroma.from_documents(texts, embedding)
+rulebook_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/rulebook")
 
 rulebook_retriever = rulebook_vectordb.as_retriever()
 
@@ -62,11 +62,9 @@ documents = loader.load()
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 texts = text_splitter.split_documents(documents)
 
-csv_vectordb = Chroma.from_documents(texts, embedding)
+csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/rulebook")
 
 csv_retriever = csv_vectordb.as_retriever()
-
-
 
 # Initialize ChatOpenAI
 llm = ChatOpenAI(
