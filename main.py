@@ -10,11 +10,12 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.document_loaders import DirectoryLoader
-from langchain.schema.runnable import RunnablePassthrough
-from langchain.schema.output_parser import StrOutputParser
 from langchain.embeddings import CacheBackedEmbeddings
 from langchain.tools import tool
 from pydantic import BaseModel, Field
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.messages import AIMessage, HumanMessage
+
 
 class CardNameInput(BaseModel):
     song: str = Field(
@@ -98,6 +99,7 @@ prompt = ChatPromptTemplate.from_messages([
     "If you don't find the card in the database, say that you didn't find the card with the name. "
     "If card have ruling, add all rulings in the end of your answer. "
     "If card have no ruling, add 'No ruling found' in the end of your answer. "),
+    MessagesPlaceholder("chat_history"),
     ("human", "{question}"),
     ("human", "Relevant information: {context}"),
     ("placeholder", "{agent_scratchpad}"),
@@ -108,20 +110,31 @@ agent = create_openai_functions_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 
-# Creating the LCEL chain
-chain = (
-    {"context": rulebook_retriever, "question": RunnablePassthrough()}
-    | agent_executor
-)
-
-
+# Create API model
+class ChatMessage(BaseModel):
+    type: str 
+    content: str
 class Query(BaseModel):
+    chat_history: list[ChatMessage]
     question: str
-   
+
 # Create API Endpoint
+def get_message_object(message):
+    if message.type == "human":
+        return HumanMessage(content=message.content)
+    elif message.type == "ai":
+        return AIMessage(content=message.content)
+    else:
+        # Handle any unexpected message type as needed
+        raise ValueError(f"Unexpected message type: {message.type}")
+
 @app.post("/ask")
 async def ask_question(query: Query):
-    response = chain.invoke(query.question)
+    response = agent_executor.invoke({
+        "context": rulebook_retriever, 
+        "question": query.question,
+        "chat_history": [get_message_object(message) for message in query.chat_history]
+    })
     return {"answer": response['output']}
 
 if __name__ == "__main__":
