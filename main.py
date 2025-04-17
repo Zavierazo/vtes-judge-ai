@@ -62,7 +62,7 @@ documents = loader.load()
 text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
 texts = text_splitter.split_documents(documents)
 
-csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/rulebook")
+csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/csv")
 
 csv_retriever = csv_vectordb.as_retriever()
 
