@@ -28,7 +28,8 @@ def ruling_by_name(name: str) -> list:
     url = f"https://api.krcg.org/card/{name}"
     response = requests.get(url)
     if response.status_code==200:
-        return response.json()["rulings"]
+        response = response.json()
+        return response["rulings"] if "rulings" in response else []
     else:
         return []
 
