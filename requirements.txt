@@ -12,3 +12,4 @@ pypl
 uvicorn
 pypdf
 chromadb
+beautifulsoup4
