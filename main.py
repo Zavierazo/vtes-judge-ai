@@ -7,7 +7,7 @@ from langchain_community.vectorstores import Chroma
 from fastapi import FastAPI
 from pydantic import BaseModel
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.agents import Tool, AgentExecutor, create_openai_functions_agent
+from langchain.agents import Tool, AgentExecutor, create_openai_tools_agent
 from langchain.prompts import ChatPromptTemplate
 from langchain_community.document_loaders import DirectoryLoader
 from langchain.embeddings import CacheBackedEmbeddings
@@ -70,7 +70,6 @@ csv_retriever = csv_vectordb.as_retriever()
 
 # Initialize ChatOpenAI
 llm = ChatOpenAI(
-    openai_api_key=OPENAI_API_KEY,
     model_name='gpt-4o',
     temperature=0.0
 )
@@ -107,7 +106,7 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 # Agent
-agent = create_openai_functions_agent(llm, tools, prompt)
+agent = create_openai_tools_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
 

@@ -1,6 +1,7 @@
 
 langchain
 langchain-community
+langchain-ollama
 pinecone-client
 langchain-openai
 openai
@@ -11,4 +12,3 @@ pypl
 uvicorn
 pypdf
 chromadb
-pysqlite3-binary
