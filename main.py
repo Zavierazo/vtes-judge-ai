@@ -1,6 +1,5 @@
 import os
 import requests
-import urllib.request 
 from langchain.storage import LocalFileStore
 from langchain_community.document_loaders import CSVLoader, PyPDFLoader, WebBaseLoader
 from langchain.text_splitter import CharacterTextSplitter
@@ -59,8 +58,8 @@ rulebook_vectordb = Chroma.from_documents(texts, embedding, persist_directory=".
 rulebook_retriever = rulebook_vectordb.as_retriever()
 
 #Initialize csv vector database
-urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vtescrypt.csv", "./data/csv/vtescrypt.csv")
-urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vteslib.csv", "./data/csv/vteslib.csv")
+# urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vtescrypt.csv", "./data/csv/vtescrypt.csv")
+# urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vteslib.csv", "./data/csv/vteslib.csv")
 loader = DirectoryLoader('./data/csv', glob='*.csv', loader_cls=CSVLoader, loader_kwargs={'encoding': 'utf-8'})
 documents = loader.load()
 
