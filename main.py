@@ -72,28 +72,28 @@ csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chr
 csv_retriever = csv_vectordb.as_retriever()
 
 #Initialize tournament rules vector database
-loader = WebBaseLoader(["https://www.vekn.net/tournament-rules", "https://www.vekn.net/judges-guide"])
+# loader = WebBaseLoader(["https://www.vekn.net/tournament-rules", "https://www.vekn.net/judges-guide"])
 
-documents = loader.load()
+# documents = loader.load()
 
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-texts = text_splitter.split_documents(documents)
+# text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+# texts = text_splitter.split_documents(documents)
 
-tournament_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/tournament_rules")
+# tournament_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/tournament_rules")
 
-tournament_rules_retriever = tournament_rules_vectordb.as_retriever()
+# tournament_rules_retriever = tournament_rules_vectordb.as_retriever()
 
 #Initialize general rules vector database
-loader = WebBaseLoader("https://www.vekn.net/general-rulings")
+# loader = WebBaseLoader("https://www.vekn.net/general-rulings")
 
-documents = loader.load()
+# documents = loader.load()
 
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-texts = text_splitter.split_documents(documents)
+# text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+# texts = text_splitter.split_documents(documents)
 
-general_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/general_rules")
+# general_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/general_rules")
 
-general_rules_retriever = general_rules_vectordb.as_retriever()
+# general_rules_retriever = general_rules_vectordb.as_retriever()
 
 # Initialize ChatOpenAI
 llm = ChatOpenAI(
@@ -113,16 +113,16 @@ tools = [
         func=ruling_by_name,
         description="Useful for extracting the ruling from card name. Card name should be exact match from csv Name column",
     ),
-    Tool(
-        name="Tournament",
-        func=tournament_rules_retriever.get_relevant_documents,
-        description="Useful for retrieving relevant documents with info about tournament/event/judge rulings",
-    ),
-    Tool(
-        name="General",
-        func=general_rules_retriever.get_relevant_documents,
-        description="Useful for retrieving relevant documents with info about general rulings that apply to all cards",
-    )
+    # Tool(
+    #     name="Tournament",
+    #     func=tournament_rules_retriever.get_relevant_documents,
+    #     description="Useful for retrieving relevant documents with info about tournament/event/judge rulings",
+    # ),
+    # Tool(
+    #     name="General",
+    #     func=general_rules_retriever.get_relevant_documents,
+    #     description="Useful for retrieving relevant documents with info about general rulings that apply to all cards",
+    # )
 ]
 
 # Creating Prompt
