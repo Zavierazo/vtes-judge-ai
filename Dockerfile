@@ -6,6 +6,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 RUN pip install -r requirements.txt
+RUN mkdir -p /app/data/csv
 
 COPY . .
 

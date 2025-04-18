@@ -1,7 +1,8 @@
 import os
 import requests
+import urllib.request 
 from langchain.storage import LocalFileStore
-from langchain_community.document_loaders import CSVLoader, PyPDFLoader
+from langchain_community.document_loaders import CSVLoader, PyPDFLoader, WebBaseLoader
 from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from fastapi import FastAPI
@@ -58,6 +59,8 @@ rulebook_vectordb = Chroma.from_documents(texts, embedding, persist_directory=".
 rulebook_retriever = rulebook_vectordb.as_retriever()
 
 #Initialize csv vector database
+urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vtescrypt.csv", "./data/csv/vtescrypt.csv")
+urllib.request.urlretrieve("https://raw.githubusercontent.com/GiottoVerducci/vtescsv/refs/heads/main/vteslib.csv", "./data/csv/vteslib.csv")
 loader = DirectoryLoader('./data/csv', glob='*.csv', loader_cls=CSVLoader, loader_kwargs={'encoding': 'utf-8'})
 documents = loader.load()
 
@@ -67,6 +70,30 @@ texts = text_splitter.split_documents(documents)
 csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/csv")
 
 csv_retriever = csv_vectordb.as_retriever()
+
+#Initialize tournament rules vector database
+loader = WebBaseLoader(["https://www.vekn.net/tournament-rules", "https://www.vekn.net/judges-guide"])
+
+documents = loader.load()
+
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+texts = text_splitter.split_documents(documents)
+
+tournament_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/tournament_rules")
+
+tournament_rules_retriever = tournament_rules_vectordb.as_retriever()
+
+#Initialize general rules vector database
+loader = WebBaseLoader("https://www.vekn.net/general-rulings")
+
+documents = loader.load()
+
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+texts = text_splitter.split_documents(documents)
+
+general_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/general_rules")
+
+general_rules_retriever = general_rules_vectordb.as_retriever()
 
 # Initialize ChatOpenAI
 llm = ChatOpenAI(
@@ -85,20 +112,35 @@ tools = [
         name="Ruling",
         func=ruling_by_name,
         description="Useful for extracting the ruling from card name. Card name should be exact match from csv Name column",
+    ),
+    Tool(
+        name="Tournament",
+        func=tournament_rules_retriever.get_relevant_documents,
+        description="Useful for retrieving relevant documents with info about tournament/event/judge rulings",
+    ),
+    Tool(
+        name="General",
+        func=general_rules_retriever.get_relevant_documents,
+        description="Useful for retrieving relevant documents with info about general rulings that apply to all cards",
     )
 ]
 
 # Creating Prompt
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful AI assistant for Vampire: The Eternal Struggle (VTES) trading card game. "
-    "Address questions exclusively related to VTES. "
-    "Use the provided tools to answer the user's question. "
-    "Always use the Ruling tool to extract the ruling from card name. "
-    "Add source of the answer in the end of your answer with page number of rulebook with url https://www.blackchantry.com/utilities/rulebook/. "
-    "If you don't know the answer, just say that you don't know, don't try to make up an answer "
-    "If you don't find the card in the database, say that you didn't find the card with the name. "
-    "If card have ruling, add all rulings in the end of your answer. "
-    "If card have no ruling, add 'No ruling found' in the end of your answer. "),
+    ("system", 
+        "You are a helpful AI assistant for Vampire: The Eternal Struggle (VTES) trading card game. "
+        "Address questions exclusively related to VTES. "
+        "Use the provided tools to answer the user's question. "
+        "Use the CSV tool to extract the exact card name from the question. "
+        "Use the General tool to extract the general rulings that apply to all cards. "
+        "Use the Ruling tool to extract the ruling from card name using the exact card name from CSV. "        
+        "Use the Tournament tool to extract the tournament/event/judge rulings. "
+        "Add source of the answer in the end of your answer with page number of rulebook with url https://www.blackchantry.com/utilities/rulebook/ if its related to the question. "
+        "If you don't know the answer, just say that you don't know, don't try to make up an answer "
+        "If you don't find the card in the CSV tool, say that you didn't find the card with the name. "
+        "If card have ruling, add all rulings in the end of your answer. "
+        "If card have no ruling, add 'No ruling found' in the end of your answer. "
+    ),
     MessagesPlaceholder("chat_history"),
     ("human", "{question}"),
     ("human", "Relevant information: {context}"),
