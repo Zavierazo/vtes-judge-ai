@@ -16,6 +16,8 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.messages import AIMessage, HumanMessage
 
+#from dotenv import load_dotenv
+#load_dotenv()
 
 class CardNameInput(BaseModel):
     song: str = Field(
@@ -92,6 +94,18 @@ general_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directo
 
 general_rules_retriever = general_rules_vectordb.as_retriever()
 
+#Initialize general rules vector database
+loader = WebBaseLoader("https://www.vekn.net/rulebook/appendix-imbued-rules")
+
+documents = loader.load()
+
+text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+texts = text_splitter.split_documents(documents)
+
+imbued_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chroma/imbued_rules")
+
+imbued_rules_retriever = imbued_rules_vectordb.as_retriever()
+
 # Initialize ChatOpenAI
 llm = ChatOpenAI(
     model_name='gpt-4o',
@@ -119,6 +133,11 @@ tools = [
         name="General",
         func=general_rules_retriever.get_relevant_documents,
         description="Useful for retrieving relevant documents with info about general rulings that apply to all cards",
+    ),
+    Tool(
+        name="Imbued",
+        func=imbued_rules_retriever.get_relevant_documents,
+        description="Useful for retrieving relevant documents with info about imbued, conviction, power rulings",
     )
 ]
 
@@ -132,12 +151,14 @@ prompt = ChatPromptTemplate.from_messages([
         "Use the General tool to extract the general rulings that apply to all cards. "
         "Use the Ruling tool to extract the ruling from card name using the exact card name from CSV. "        
         "Use the Tournament tool to extract the tournament/event/judge rulings. "
+        "Use the Imbued tool to extract the imbued, conviction, power rulings. "
         "Add source of the answer in the end of your answer. "
-        "If source is rulebook add page number with url https://www.blackchantry.com/utilities/rulebook/."
+        "If source is rulebook add page number with url https://www.blackchantry.com/utilities/rulebook/. "
         "If you don't know the answer, just say that you don't know, don't try to make up an answer "
         "If you don't find the card in the CSV tool, say that you didn't find the card with the name. "
         "If card have ruling, add all rulings in the end of your answer with links to the ruling. "
         "If card have no ruling, add 'No ruling found' in the end of your answer. "
+        "If question is about a card and you know the id of the card, add the card image at the end with path /assets/img/cards/$cardId.jpg where $cardId is the id of the card. "
     ),
     MessagesPlaceholder("chat_history"),
     ("human", "{question}"),
