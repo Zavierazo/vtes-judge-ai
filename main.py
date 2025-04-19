@@ -1,5 +1,7 @@
 import os
 import requests
+import logging
+import sys
 from langchain.storage import LocalFileStore
 from langchain_community.document_loaders import CSVLoader, PyPDFLoader, WebBaseLoader
 from langchain.text_splitter import CharacterTextSplitter
@@ -16,8 +18,8 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import MessagesPlaceholder
 from langchain_core.messages import AIMessage, HumanMessage
 
-#from dotenv import load_dotenv
-#load_dotenv()
+# from dotenv import load_dotenv
+# load_dotenv()
 
 class CardNameInput(BaseModel):
     song: str = Field(
@@ -36,6 +38,8 @@ def ruling_by_name(name: str) -> list:
         return []
 
 app = FastAPI()
+LOG = logging.getLogger('uvicorn.error')
+
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
@@ -48,6 +52,7 @@ embedding = CacheBackedEmbeddings.from_bytes_store(
 )
 
 # Initialize rulebook vector database
+LOG.info("Loading rulebook...")
 pdf_path = "./data/rulebook.pdf"
 loader = PyPDFLoader(pdf_path)
 documents = loader.load()
@@ -60,6 +65,7 @@ rulebook_vectordb = Chroma.from_documents(texts, embedding, persist_directory=".
 rulebook_retriever = rulebook_vectordb.as_retriever()
 
 #Initialize csv vector database
+LOG.info("Loading csv...")
 loader = DirectoryLoader('./data/csv', glob='*.csv', loader_cls=CSVLoader, loader_kwargs={'encoding': 'utf-8'})
 documents = loader.load()
 
@@ -71,6 +77,7 @@ csv_vectordb = Chroma.from_documents(texts, embedding, persist_directory="./.chr
 csv_retriever = csv_vectordb.as_retriever()
 
 #Initialize tournament rules vector database
+LOG.info("Loading tournament rules...")
 loader = WebBaseLoader(["https://www.vekn.net/tournament-rules", "https://www.vekn.net/judges-guide"])
 
 documents = loader.load()
@@ -83,6 +90,7 @@ tournament_rules_vectordb = Chroma.from_documents(texts, embedding, persist_dire
 tournament_rules_retriever = tournament_rules_vectordb.as_retriever()
 
 #Initialize general rules vector database
+LOG.info("Loading general rules...")
 loader = WebBaseLoader("https://www.vekn.net/general-rulings")
 
 documents = loader.load()
@@ -95,6 +103,7 @@ general_rules_vectordb = Chroma.from_documents(texts, embedding, persist_directo
 general_rules_retriever = general_rules_vectordb.as_retriever()
 
 #Initialize general rules vector database
+LOG.info("Loading imbued rules...")
 loader = WebBaseLoader("https://www.vekn.net/rulebook/appendix-imbued-rules")
 
 documents = loader.load()
@@ -107,12 +116,14 @@ imbued_rules_vectordb = Chroma.from_documents(texts, embedding, persist_director
 imbued_rules_retriever = imbued_rules_vectordb.as_retriever()
 
 # Initialize ChatOpenAI
+LOG.info("Initializing ChatOpenAI...")
 llm = ChatOpenAI(
     model_name='gpt-4o',
     temperature=0.0
 )
 
 # Create tools for the agent
+LOG.info("Creating tools...")
 tools = [
     Tool(
         name="CSV",
@@ -142,6 +153,7 @@ tools = [
 ]
 
 # Creating Prompt
+LOG.info("Creating prompt...")
 prompt = ChatPromptTemplate.from_messages([
     ("system", 
         "You are a helpful AI assistant for Vampire: The Eternal Struggle (VTES) trading card game. "
@@ -167,6 +179,7 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 # Agent
+LOG.info("Creating agent...")
 agent = create_openai_tools_agent(llm, tools, prompt)
 agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
@@ -180,6 +193,7 @@ class Query(BaseModel):
     question: str
 
 # Create API Endpoint
+logging.info("Initializing API endpoint...")
 def get_message_object(message):
     if message.type == "human":
         return HumanMessage(content=message.content)
@@ -191,6 +205,7 @@ def get_message_object(message):
 
 @app.post("/ask")
 async def ask_question(query: Query):
+    logging.info(f"Query: {query.question}")
     response = agent_executor.invoke({
         "context": rulebook_retriever, 
         "question": query.question,
