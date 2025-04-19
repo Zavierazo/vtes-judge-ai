@@ -193,7 +193,7 @@ class Query(BaseModel):
     question: str
 
 # Create API Endpoint
-logging.info("Initializing API endpoint...")
+LOG.info("Initializing API endpoint...")
 def get_message_object(message):
     if message.type == "human":
         return HumanMessage(content=message.content)
@@ -205,7 +205,7 @@ def get_message_object(message):
 
 @app.post("/ask")
 async def ask_question(query: Query):
-    logging.info(f"Query: {query.question}")
+    LOG.info(f"Query: {query.question}")
     response = agent_executor.invoke({
         "context": rulebook_retriever, 
         "question": query.question,
