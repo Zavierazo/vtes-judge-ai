@@ -43,13 +43,13 @@ LOG = logging.getLogger('uvicorn.error')
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-openai_embedding = OpenAIEmbeddings(model="text-embedding-ada-002")
+embedding = OpenAIEmbeddings(model="text-embedding-ada-002")
 
-store = LocalFileStore("./.cache/")
+#store = LocalFileStore("./.cache/")
 
-embedding = CacheBackedEmbeddings.from_bytes_store(
-    openai_embedding, store, namespace=openai_embedding.model
-)
+#embedding = CacheBackedEmbeddings.from_bytes_store(
+#    openai_embedding, store, namespace=openai_embedding.model
+#)
 
 # Initialize rulebook vector database
 LOG.info("Loading rulebook...")
